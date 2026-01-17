@@ -5,6 +5,7 @@ import { Card } from "./Card";
 import { ChatStream } from "./ChatStream";
 
 const sessions = [
+  { id: "dost-1", topic: "dost", last: "Talk to your assistant" },
   { id: "sports-1", topic: "sports", last: "Who has better form today?" },
   { id: "teer-1", topic: "teer", last: "Summarize last 30 days." },
   { id: "astro-1", topic: "astrology", last: "Today vibes in Hinglish" }

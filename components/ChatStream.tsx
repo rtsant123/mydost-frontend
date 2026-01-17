@@ -28,7 +28,6 @@ export function ChatStream({
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [token, setToken] = useState<string | null>(null);
-  const [freeChats, setFreeChats] = useState(0);
 
   const normalizeCards = (payload?: CardResponse | { cards?: CardResponse[] }): CardResponse[] => {
     if (!payload) return [];
@@ -49,8 +48,6 @@ export function ChatStream({
     if (matchId) params.set("matchId", matchId);
     return `${API_BASE_URL}/chat/stream?${params.toString()}`;
   }, [topic, matchId]);
-
-  const freeChatKey = "mydost_free_chats";
 
   const getMemoryKey = (scope: "global" | "topic") =>
     scope === "global" ? "mydost_memory_global" : `mydost_memory_${topic}`;
@@ -123,10 +120,6 @@ export function ChatStream({
   useEffect(() => {
     const auth = getAuth();
     setToken(auth.token);
-    if (typeof window !== "undefined") {
-      const count = Number(window.localStorage.getItem(freeChatKey) ?? "0");
-      setFreeChats(count);
-    }
     return () => {
       setLoading(false);
     };
@@ -135,9 +128,8 @@ export function ChatStream({
   const handleSend = () => {
     if (!input.trim()) return;
     const trimmed = input.trim();
-    if (!token && freeChats >= 3) {
-      return;
-    }
+    if (!token) return;
+    const assistantId = `assistant-${Date.now()}`;
     setMessages((prev) => [...prev, createUserMessage(trimmed)]);
     setInput("");
     setLoading(true);
@@ -145,83 +137,6 @@ export function ChatStream({
     const memoryPrefix = buildMemoryPrefix();
     const combinedPrefix = [contextPrefix, memoryPrefix].filter(Boolean).join("\n\n");
     const message = combinedPrefix ? `${combinedPrefix}\n\nUser: ${trimmed}` : trimmed;
-
-    if (!token) {
-      const eventSource = new EventSource(`${streamUrl}&q=${encodeURIComponent(message)}`);
-      let completed = false;
-
-      eventSource.onmessage = (event) => {
-        const data = JSON.parse(event.data) as { card?: CardResponse | { cards?: CardResponse[] }; done?: boolean };
-        const incomingCards = withIds(normalizeCards(data.card));
-        if (incomingCards.length) {
-          setMessages((prev) => {
-            const existing = prev.find((message) => message.id === "assistant");
-            if (existing) {
-              const updated = prev.map((message) =>
-                message.id === "assistant"
-                  ? {
-                      ...message,
-                      cards: [...(message.cards ?? []), ...incomingCards]
-                    }
-                  : message
-              );
-              return updated;
-            }
-            return [
-              ...prev,
-              {
-                id: "assistant",
-                role: "assistant",
-                cards: incomingCards
-              }
-            ];
-          });
-        }
-        if (data.done) {
-          setLoading(false);
-          completed = true;
-          eventSource.close();
-          appendMemory([
-            `User: ${trimmed}`,
-            `Assistant: ${incomingCards
-              .flatMap((card) => card.bullets ?? [])
-              .slice(0, 2)
-              .join(" ")}`
-          ]);
-          if (typeof window !== "undefined") {
-            const next = freeChats + 1;
-            window.localStorage.setItem(freeChatKey, String(next));
-            setFreeChats(next);
-          }
-        }
-      };
-
-      eventSource.onerror = () => {
-        if (completed) {
-          eventSource.close();
-          return;
-        }
-        setLoading(false);
-        eventSource.close();
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: `error-${Date.now()}`,
-            role: "assistant",
-            cards: [
-              {
-                id: `warning-${Date.now()}`,
-                type: "warning",
-                title: "Streaming unavailable",
-                content: "We could not reach the live stream. Please try again in a moment."
-              }
-            ]
-          }
-        ]);
-      };
-
-      return;
-    }
 
     const startChat = async () => {
       const sessionKey = `mydost_session_${topic}`;
@@ -261,6 +176,7 @@ export function ChatStream({
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
+      let lastCards: CardResponse[] = [];
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
@@ -274,11 +190,12 @@ export function ChatStream({
           const payload = JSON.parse(raw);
           const incomingCards = withIds(toCardResponses(payload));
           if (incomingCards.length) {
+            lastCards = incomingCards;
             setMessages((prev) => {
-              const existing = prev.find((message) => message.id === "assistant");
+              const existing = prev.find((message) => message.id === assistantId);
               if (existing) {
                 const updated = prev.map((message) =>
-                  message.id === "assistant"
+                  message.id === assistantId
                     ? {
                         ...message,
                         cards: [...(message.cards ?? []), ...incomingCards]
@@ -290,7 +207,7 @@ export function ChatStream({
               return [
                 ...prev,
                 {
-                  id: "assistant",
+                  id: assistantId,
                   role: "assistant",
                   cards: incomingCards
                 }
@@ -298,7 +215,7 @@ export function ChatStream({
             });
             appendMemory([
               `User: ${trimmed}`,
-              `Assistant: ${incomingCards
+              `Assistant: ${lastCards
                 .flatMap((card) => card.bullets ?? [])
                 .slice(0, 2)
                 .join(" ")}`
@@ -436,16 +353,19 @@ export function ChatStream({
             rows={2}
             placeholder={placeholder ?? "Type your message…"}
             className="min-h-[56px] flex-1 resize-none rounded-2xl border border-ink-100 p-3 text-sm outline-none focus:border-ink-300"
-            disabled={!token && freeChats >= 3}
+            disabled={!token}
+            spellCheck
+            autoCorrect="on"
+            autoCapitalize="sentences"
           />
-          <Button onClick={handleSend} size="sm" className="h-11 px-4" disabled={!token && freeChats >= 3}>
+          <Button onClick={handleSend} size="sm" className="h-11 px-4" disabled={!token}>
             Send
           </Button>
         </div>
-        {!token && freeChats >= 3 && (
+        {!token && (
           <div className="mt-3 rounded-2xl border border-ink-100 bg-white px-4 py-3 text-sm text-ink-600">
-            <p className="font-medium text-ink-900">Sign in to continue the chat.</p>
-            <p className="mt-1 text-xs text-ink-500">You’ve used your 3 free messages.</p>
+            <p className="font-medium text-ink-900">Sign in to start chatting.</p>
+            <p className="mt-1 text-xs text-ink-500">Your chats will be saved to memory.</p>
             <div className="mt-3">
               <GoogleLoginButton onSuccess={() => setToken(getAuth().token)} />
             </div>
