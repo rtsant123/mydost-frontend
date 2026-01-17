@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { API_BASE_URL } from "@/lib/api";
 import { getAuth } from "@/lib/auth";
 import { CardResponse, ChatMessage } from "@/lib/types";
@@ -28,6 +28,7 @@ export function ChatStream({
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [token, setToken] = useState<string | null>(null);
+  const endRef = useRef<HTMLDivElement | null>(null);
 
   const normalizeCards = (payload?: CardResponse | { cards?: CardResponse[] }): CardResponse[] => {
     if (!payload) return [];
@@ -124,6 +125,10 @@ export function ChatStream({
       setLoading(false);
     };
   }, []);
+
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages, loading]);
 
   const handleSend = () => {
     if (!input.trim()) return;
@@ -415,6 +420,7 @@ export function ChatStream({
               Ask a question to start the chat.
             </p>
           )}
+          <div ref={endRef} />
         </div>
       </div>
       <div className="sticky bottom-4 rounded-3xl border border-ink-100 bg-white/95 p-3 shadow-card backdrop-blur">

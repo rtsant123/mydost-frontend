@@ -1,39 +1,37 @@
 import Link from "next/link";
 import { Button } from "./Button";
-import { PlanBadge } from "./PlanBadge";
-import { UsageMeter } from "./UsageMeter";
 
 export function AppHeader() {
   return (
-    <header className="border-b border-ink-100 bg-white">
-      <div className="container-page flex flex-wrap items-center justify-between gap-4 py-4">
-        <div className="flex items-center gap-4">
-          <Link href="/" className="text-lg font-semibold text-ink-900">
+    <header className="sticky top-0 z-40 border-b border-ink-100 bg-white/95 backdrop-blur">
+      <div className="container-page flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center justify-between gap-4">
+          <Link href="/" className="text-lg font-semibold tracking-tight text-ink-900">
             mydost
           </Link>
-          <nav className="hidden items-center gap-4 text-sm text-ink-600 sm:flex">
-            <Link href="/sports" className="hover:text-ink-900">
-              Sports
-            </Link>
-            <Link href="/teer" className="hover:text-ink-900">
-              Teer
-            </Link>
-            <Link href="/astrology" className="hover:text-ink-900">
-              Astrology
-            </Link>
-            <Link href="/chat" className="hover:text-ink-900">
-              Chats
-            </Link>
-            <Link href="/pricing" className="hover:text-ink-900">
-              Pricing
-            </Link>
-          </nav>
+          <Button href="/chat" size="sm" className="sm:hidden">
+            Open chat
+          </Button>
         </div>
-        <div className="flex items-center gap-4">
-          <PlanBadge plan="Free" />
-          <UsageMeter used={3} total={10} />
-          <Button variant="secondary" size="sm">
-            Google Login
+        <nav className="flex items-center gap-2 overflow-x-auto text-sm text-ink-600 sm:gap-4">
+          {[
+            { label: "Dost", href: "/chat" },
+            { label: "Sports", href: "/sports" },
+            { label: "Teer", href: "/teer" },
+            { label: "Astrology", href: "/astrology" }
+          ].map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="whitespace-nowrap rounded-full border border-ink-100 px-3 py-1 text-xs font-medium text-ink-700 hover:border-ink-300 hover:text-ink-900"
+            >
+              {item.label}
+            </Link>
+          ))}
+        </nav>
+        <div className="hidden items-center gap-3 sm:flex">
+          <Button href="/register" variant="secondary" size="sm">
+            Sign in
           </Button>
         </div>
       </div>
