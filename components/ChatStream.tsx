@@ -40,7 +40,8 @@ export function ChatStream({ topic, matchId }: { topic: string; matchId?: string
 
     eventSource.onmessage = (event) => {
       const data = JSON.parse(event.data) as { card?: CardResponse; done?: boolean };
-      if (data.card) {
+      const card = data.card;
+      if (card) {
         setMessages((prev) => {
           const existing = prev.find((message) => message.id === "assistant");
           if (existing) {
@@ -48,7 +49,7 @@ export function ChatStream({ topic, matchId }: { topic: string; matchId?: string
               message.id === "assistant"
                 ? {
                     ...message,
-                    cards: [...(message.cards ?? []), data.card]
+                    cards: [...(message.cards ?? []), card]
                   }
                 : message
             );
@@ -59,7 +60,7 @@ export function ChatStream({ topic, matchId }: { topic: string; matchId?: string
             {
               id: "assistant",
               role: "assistant",
-              cards: [data.card]
+              cards: [card]
             }
           ];
         });
