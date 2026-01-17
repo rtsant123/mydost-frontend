@@ -60,7 +60,6 @@ export function CardRenderer({ card }: { card: CardResponse }) {
           ))}
         </div>
       )}
-      <p className="disclaimer">Entertainment only. Not financial advice.</p>
     </Card>
   );
 }

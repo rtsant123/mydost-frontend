@@ -18,6 +18,20 @@ export function ChatStream({ topic, matchId }: { topic: string; matchId?: string
   const [loading, setLoading] = useState(false);
   const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({});
 
+  const normalizeCards = (payload?: CardResponse | { cards?: CardResponse[] }): CardResponse[] => {
+    if (!payload) return [];
+    if ("cards" in payload && Array.isArray(payload.cards)) {
+      return payload.cards;
+    }
+    return [payload as CardResponse];
+  };
+
+  const withIds = (cards: CardResponse[]) =>
+    cards.map((card, index) => ({
+      ...card,
+      id: card.id ?? `card-${Date.now()}-${index}`
+    }));
+
   const streamUrl = useMemo(() => {
     const params = new URLSearchParams({ topic });
     if (matchId) params.set("matchId", matchId);
@@ -39,9 +53,9 @@ export function ChatStream({ topic, matchId }: { topic: string; matchId?: string
     const eventSource = new EventSource(`${streamUrl}&q=${encodeURIComponent(input.trim())}`);
 
     eventSource.onmessage = (event) => {
-      const data = JSON.parse(event.data) as { card?: CardResponse; done?: boolean };
-      const card = data.card;
-      if (card) {
+      const data = JSON.parse(event.data) as { card?: CardResponse | { cards?: CardResponse[] }; done?: boolean };
+      const incomingCards = withIds(normalizeCards(data.card));
+      if (incomingCards.length) {
         setMessages((prev) => {
           const existing = prev.find((message) => message.id === "assistant");
           if (existing) {
@@ -49,7 +63,7 @@ export function ChatStream({ topic, matchId }: { topic: string; matchId?: string
               message.id === "assistant"
                 ? {
                     ...message,
-                    cards: [...(message.cards ?? []), card]
+                    cards: [...(message.cards ?? []), ...incomingCards]
                   }
                 : message
             );
@@ -60,7 +74,7 @@ export function ChatStream({ topic, matchId }: { topic: string; matchId?: string
             {
               id: "assistant",
               role: "assistant",
-              cards: [card]
+              cards: incomingCards
             }
           ];
         });
@@ -97,57 +111,59 @@ export function ChatStream({ topic, matchId }: { topic: string; matchId?: string
   };
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-4">
-        {messages.map((message) => (
-          <div key={message.id} className="space-y-3">
-            {message.role === "user" && (
-              <div className="self-end rounded-2xl bg-ink-900 px-4 py-3 text-sm text-white">
-                {message.text}
-              </div>
-            )}
-            {message.role === "assistant" &&
-              message.cards?.map((card) => (
-                <div key={card.id} className="space-y-2">
-                  <CardRenderer
-                    card={{
-                      ...card,
-                      content:
-                        expandedCards[card.id] || !card.content
-                          ? card.content
-                          : `${card.content.slice(0, 140)}...`,
-                      bullets:
-                        expandedCards[card.id] || !card.bullets
-                          ? card.bullets
-                          : card.bullets.slice(0, 2)
-                    }}
-                  />
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-xs"
-                    onClick={() => toggleExpand(card.id)}
-                  >
-                    {expandedCards[card.id] ? "Collapse" : "Expand"}
-                  </Button>
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
+      <div className="rounded-3xl border border-ink-100 bg-white p-5 shadow-card">
+        <div className="space-y-4">
+          {messages.map((message) => (
+            <div key={message.id} className="space-y-3">
+              {message.role === "user" && (
+                <div className="ml-auto max-w-[75%] rounded-2xl bg-ink-900 px-4 py-3 text-sm text-white">
+                  {message.text}
                 </div>
-              ))}
-          </div>
-        ))}
-        {loading && (
-          <div className="card card-section">
-            <div className="skeleton h-4 w-2/3" />
-            <div className="skeleton h-4 w-1/2" />
-          </div>
-        )}
+              )}
+              {message.role === "assistant" &&
+                message.cards?.map((card) => (
+                  <div key={card.id} className="space-y-2">
+                    <CardRenderer
+                      card={{
+                        ...card,
+                        content:
+                          expandedCards[card.id] || !card.content
+                            ? card.content
+                            : `${card.content.slice(0, 140)}...`,
+                        bullets:
+                          expandedCards[card.id] || !card.bullets
+                            ? card.bullets
+                            : card.bullets.slice(0, 2)
+                      }}
+                    />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs"
+                      onClick={() => toggleExpand(card.id)}
+                    >
+                      {expandedCards[card.id] ? "Collapse" : "Expand"}
+                    </Button>
+                  </div>
+                ))}
+            </div>
+          ))}
+          {loading && (
+            <div className="card card-section">
+              <div className="skeleton h-4 w-2/3" />
+              <div className="skeleton h-4 w-1/2" />
+            </div>
+          )}
+        </div>
       </div>
-      <div className="flex flex-col gap-3 rounded-2xl border border-ink-100 bg-white p-4">
+      <div className="sticky bottom-4 flex flex-col gap-3 rounded-3xl border border-ink-100 bg-white/95 p-4 shadow-card backdrop-blur">
         <textarea
           value={input}
           onChange={(event) => setInput(event.target.value)}
           rows={3}
           placeholder="Ask mydost anything..."
-          className="w-full resize-none rounded-xl border border-ink-100 p-3 text-sm outline-none focus:border-ink-300"
+          className="w-full resize-none rounded-2xl border border-ink-100 p-3 text-sm outline-none focus:border-ink-300"
         />
         <div className="flex items-center justify-between">
           <p className="text-xs text-ink-400">Responses stream live. Entertainment only.</p>
