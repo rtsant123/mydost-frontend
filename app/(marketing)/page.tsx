@@ -35,6 +35,10 @@ export default function HomePage() {
       <section className="grid gap-4 lg:grid-cols-3">
         {[
           {
+            title: "Dost",
+            copy: "Your always-on assistant with memory across domains."
+          },
+          {
             title: "Sports",
             copy: "Match previews, H2H context, and quick recaps."
           },
