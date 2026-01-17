@@ -104,6 +104,22 @@ export function ChatStream({
     }));
   };
 
+  const extractCleanText = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed.startsWith("{")) return trimmed;
+    try {
+      const parsed = JSON.parse(trimmed) as {
+        content?: string;
+        value?: string;
+        text?: string;
+        title?: string;
+      };
+      return parsed.content ?? parsed.value ?? parsed.text ?? parsed.title ?? trimmed;
+    } catch (error) {
+      return trimmed;
+    }
+  };
+
   useEffect(() => {
     const auth = getAuth();
     setToken(auth.token);
@@ -316,24 +332,20 @@ export function ChatStream({
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-5">
       <div className="space-y-4">
-        {messages.length === 0 && (
-          <div className="rounded-3xl border border-ink-100 bg-white/70 px-5 py-6 text-center text-sm text-ink-500">
-            Start a chat by sending a message below.
-          </div>
-        )}
         <div className="space-y-4">
           {messages.map((message) => (
             <div key={message.id} className="space-y-3">
               {message.role === "user" && (
-                <div className="ml-auto max-w-[75%] rounded-2xl bg-ink-900 px-4 py-3 text-sm text-white">
+                <div className="ml-auto max-w-[80%] rounded-2xl bg-ink-900 px-4 py-3 text-sm text-white shadow-sm">
                   {message.text}
                 </div>
               )}
               {message.role === "assistant" &&
                 message.cards?.map((card) => {
-                  const isSimpleAnswer =
-                    card.type === "answer" && !card.table && !card.cta;
-                  const textParts = [card.content, ...(card.bullets ?? [])].filter(Boolean);
+                  const isSimpleAnswer = card.type === "answer" && !card.table && !card.cta;
+                  const textParts = [card.content, ...(card.bullets ?? [])]
+                    .filter(Boolean)
+                    .map((part) => extractCleanText(String(part)));
 
                   if (isSimpleAnswer) {
                     return (
@@ -408,6 +420,11 @@ export function ChatStream({
               <div className="skeleton h-4 w-2/3" />
               <div className="skeleton h-4 w-1/2" />
             </div>
+          )}
+          {messages.length === 0 && !loading && (
+            <p className="text-center text-xs text-ink-400">
+              Ask a question to start the chat.
+            </p>
           )}
         </div>
       </div>
