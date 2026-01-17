@@ -51,6 +51,7 @@ export function ChatStream({ topic, matchId }: { topic: string; matchId?: string
     setLoading(true);
 
     const eventSource = new EventSource(`${streamUrl}&q=${encodeURIComponent(input.trim())}`);
+    let completed = false;
 
     eventSource.onmessage = (event) => {
       const data = JSON.parse(event.data) as { card?: CardResponse | { cards?: CardResponse[] }; done?: boolean };
@@ -81,11 +82,16 @@ export function ChatStream({ topic, matchId }: { topic: string; matchId?: string
       }
       if (data.done) {
         setLoading(false);
+        completed = true;
         eventSource.close();
       }
     };
 
     eventSource.onerror = () => {
+      if (completed) {
+        eventSource.close();
+        return;
+      }
       setLoading(false);
       eventSource.close();
       setMessages((prev) => [
