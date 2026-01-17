@@ -133,6 +133,15 @@ export function ChatStream({
   const handleSend = () => {
     if (!input.trim()) return;
     const trimmed = input.trim();
+    const assistantId = `assistant-${Date.now()}`;
+    setMessages((prev) => [...prev, createUserMessage(trimmed)]);
+    setInput("");
+    setLoading(true);
+
+    const memoryPrefix = buildMemoryPrefix();
+    const combinedPrefix = [contextPrefix, memoryPrefix].filter(Boolean).join("\n\n");
+    const message = combinedPrefix ? `${combinedPrefix}\n\nUser: ${trimmed}` : trimmed;
+
     if (!token) {
       const eventSource = new EventSource(`${streamUrl}&q=${encodeURIComponent(message)}`);
       let completed = false;
@@ -206,15 +215,6 @@ export function ChatStream({
 
       return;
     }
-    const assistantId = `assistant-${Date.now()}`;
-    setMessages((prev) => [...prev, createUserMessage(trimmed)]);
-    setInput("");
-    setLoading(true);
-
-    const memoryPrefix = buildMemoryPrefix();
-    const combinedPrefix = [contextPrefix, memoryPrefix].filter(Boolean).join("\n\n");
-    const message = combinedPrefix ? `${combinedPrefix}\n\nUser: ${trimmed}` : trimmed;
-
     const startChat = async () => {
       const sessionKey = `mydost_session_${topic}`;
       let sessionId = typeof window !== "undefined" ? window.localStorage.getItem(sessionKey) : null;
