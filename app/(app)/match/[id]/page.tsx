@@ -19,12 +19,8 @@ export default function MatchPage({ params }: { params: { id: string } }) {
         <div className="space-y-4">
           <CardRenderer card={matchBrief} />
           <CardRenderer card={keyFactors} />
-          <Card title="Crowd Confidence">
-            <p className="text-sm text-ink-600">
-              Cast your vote to shape the confidence bar for this match.
-            </p>
-            <VoteWidget />
-            <p className="disclaimer">Votes are aggregated in real-time.</p>
+          <Card title="Market Vote">
+            <VoteWidget teamA="Team A" teamB="Team B" />
           </Card>
           {matchEnded && (
             <div className="space-y-4">
@@ -36,7 +32,7 @@ export default function MatchPage({ params }: { params: { id: string } }) {
         </div>
 
         <Card title="Live Chat">
-          <ChatStream topic="match" matchId={params.id} />
+          <ChatStream topic="sports" matchId={params.id} />
         </Card>
       </div>
     </div>

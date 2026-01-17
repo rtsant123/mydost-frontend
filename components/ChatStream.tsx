@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { API_BASE_URL } from "@/lib/api";
+import { getAuth } from "@/lib/auth";
 import { CardResponse, ChatMessage } from "@/lib/types";
 import { Button } from "./Button";
-import { CardRenderer } from "./CardRenderer";
+import { GoogleLoginButton } from "./GoogleLoginButton";
 
 const createUserMessage = (text: string): ChatMessage => ({
   id: `user-${Date.now()}`,
@@ -12,11 +13,22 @@ const createUserMessage = (text: string): ChatMessage => ({
   text
 });
 
-export function ChatStream({ topic, matchId }: { topic: string; matchId?: string }) {
+export function ChatStream({
+  topic,
+  matchId,
+  contextPrefix,
+  placeholder
+}: {
+  topic: string;
+  matchId?: string;
+  contextPrefix?: string;
+  placeholder?: string;
+}) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({});
+  const [token, setToken] = useState<string | null>(null);
+  const [freeChats, setFreeChats] = useState(0);
 
   const normalizeCards = (payload?: CardResponse | { cards?: CardResponse[] }): CardResponse[] => {
     if (!payload) return [];
@@ -38,7 +50,67 @@ export function ChatStream({ topic, matchId }: { topic: string; matchId?: string
     return `${API_BASE_URL}/chat/stream?${params.toString()}`;
   }, [topic, matchId]);
 
+  const freeChatKey = "mydost_free_chats";
+
+  const getMemoryKey = (scope: "global" | "topic") =>
+    scope === "global" ? "mydost_memory_global" : `mydost_memory_${topic}`;
+
+  const loadMemory = (key: string) => {
+    if (typeof window === "undefined") return [] as string[];
+    const raw = window.localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as string[]) : [];
+  };
+
+  const saveMemory = (key: string, entries: string[]) => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(key, JSON.stringify(entries.slice(-10)));
+  };
+
+  const appendMemory = (entries: string[]) => {
+    const globalKey = getMemoryKey("global");
+    const topicKey = getMemoryKey("topic");
+    saveMemory(globalKey, [...loadMemory(globalKey), ...entries]);
+    saveMemory(topicKey, [...loadMemory(topicKey), ...entries]);
+  };
+
+  const buildMemoryPrefix = () => {
+    const global = loadMemory(getMemoryKey("global")).slice(-4);
+    const domain = loadMemory(getMemoryKey("topic")).slice(-4);
+    const combined = [...global, ...domain].slice(-6);
+    if (!combined.length) return "";
+    return `Memory:\n${combined.map((line) => `- ${line}`).join("\n")}`;
+  };
+
+  const toCardResponses = (payload: any): CardResponse[] => {
+    if (!payload) return [];
+    const cards = Array.isArray(payload.cards) ? payload.cards : normalizeCards(payload as any);
+    return cards.map((card: any, index: number) => ({
+      id: card.id ?? `card-${Date.now()}-${index}`,
+      type: card.type ?? "answer",
+      title: card.title ?? "Response",
+      confidence: card.confidence,
+      bullets: card.bullets,
+      content: card.content,
+      table: card.table
+        ? {
+            headers: card.table.columns ?? card.table.headers ?? [],
+            rows: card.table.rows ?? []
+          }
+        : undefined,
+      cta: card.cta?.map((item: any) => ({
+        label: item.label ?? "Open",
+        href: typeof item.payload === "string" ? item.payload : item.payload?.href
+      }))
+    }));
+  };
+
   useEffect(() => {
+    const auth = getAuth();
+    setToken(auth.token);
+    if (typeof window !== "undefined") {
+      const count = Number(window.localStorage.getItem(freeChatKey) ?? "0");
+      setFreeChats(count);
+    }
     return () => {
       setLoading(false);
     };
@@ -46,54 +118,183 @@ export function ChatStream({ topic, matchId }: { topic: string; matchId?: string
 
   const handleSend = () => {
     if (!input.trim()) return;
-    setMessages((prev) => [...prev, createUserMessage(input.trim())]);
+    const trimmed = input.trim();
+    if (!token && freeChats >= 3) {
+      return;
+    }
+    setMessages((prev) => [...prev, createUserMessage(trimmed)]);
     setInput("");
     setLoading(true);
 
-    const eventSource = new EventSource(`${streamUrl}&q=${encodeURIComponent(input.trim())}`);
-    let completed = false;
+    const memoryPrefix = buildMemoryPrefix();
+    const combinedPrefix = [contextPrefix, memoryPrefix].filter(Boolean).join("\n\n");
+    const message = combinedPrefix ? `${combinedPrefix}\n\nUser: ${trimmed}` : trimmed;
 
-    eventSource.onmessage = (event) => {
-      const data = JSON.parse(event.data) as { card?: CardResponse | { cards?: CardResponse[] }; done?: boolean };
-      const incomingCards = withIds(normalizeCards(data.card));
-      if (incomingCards.length) {
-        setMessages((prev) => {
-          const existing = prev.find((message) => message.id === "assistant");
-          if (existing) {
-            const updated = prev.map((message) =>
-              message.id === "assistant"
-                ? {
-                    ...message,
-                    cards: [...(message.cards ?? []), ...incomingCards]
-                  }
-                : message
-            );
-            return updated;
-          }
-          return [
-            ...prev,
-            {
-              id: "assistant",
-              role: "assistant",
-              cards: incomingCards
+    if (!token) {
+      const eventSource = new EventSource(`${streamUrl}&q=${encodeURIComponent(message)}`);
+      let completed = false;
+
+      eventSource.onmessage = (event) => {
+        const data = JSON.parse(event.data) as { card?: CardResponse | { cards?: CardResponse[] }; done?: boolean };
+        const incomingCards = withIds(normalizeCards(data.card));
+        if (incomingCards.length) {
+          setMessages((prev) => {
+            const existing = prev.find((message) => message.id === "assistant");
+            if (existing) {
+              const updated = prev.map((message) =>
+                message.id === "assistant"
+                  ? {
+                      ...message,
+                      cards: [...(message.cards ?? []), ...incomingCards]
+                    }
+                  : message
+              );
+              return updated;
             }
-          ];
-        });
-      }
-      if (data.done) {
-        setLoading(false);
-        completed = true;
-        eventSource.close();
-      }
-    };
+            return [
+              ...prev,
+              {
+                id: "assistant",
+                role: "assistant",
+                cards: incomingCards
+              }
+            ];
+          });
+        }
+        if (data.done) {
+          setLoading(false);
+          completed = true;
+          eventSource.close();
+          appendMemory([
+            `User: ${trimmed}`,
+            `Assistant: ${incomingCards
+              .flatMap((card) => card.bullets ?? [])
+              .slice(0, 2)
+              .join(" ")}`
+          ]);
+          if (typeof window !== "undefined") {
+            const next = freeChats + 1;
+            window.localStorage.setItem(freeChatKey, String(next));
+            setFreeChats(next);
+          }
+        }
+      };
 
-    eventSource.onerror = () => {
-      if (completed) {
+      eventSource.onerror = () => {
+        if (completed) {
+          eventSource.close();
+          return;
+        }
+        setLoading(false);
         eventSource.close();
-        return;
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `error-${Date.now()}`,
+            role: "assistant",
+            cards: [
+              {
+                id: `warning-${Date.now()}`,
+                type: "warning",
+                title: "Streaming unavailable",
+                content: "We could not reach the live stream. Please try again in a moment."
+              }
+            ]
+          }
+        ]);
+      };
+
+      return;
+    }
+
+    const startChat = async () => {
+      const sessionKey = `mydost_session_${topic}`;
+      let sessionId = typeof window !== "undefined" ? window.localStorage.getItem(sessionKey) : null;
+      if (!sessionId) {
+        const startResponse = await fetch(`${API_BASE_URL}/chat/start`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ topic, refId: matchId })
+        });
+        if (!startResponse.ok) {
+          throw new Error("Could not start chat");
+        }
+        const session = (await startResponse.json()) as { id: string };
+        sessionId = session.id;
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem(sessionKey, sessionId);
+        }
+      }
+
+      const response = await fetch(`${API_BASE_URL}/chat/message`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ sessionId, message })
+      });
+
+      if (!response.ok || !response.body) {
+        throw new Error("Chat request failed");
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.startsWith("data:")) continue;
+          const raw = line.replace("data:", "").trim();
+          if (!raw) continue;
+          const payload = JSON.parse(raw);
+          const incomingCards = withIds(toCardResponses(payload));
+          if (incomingCards.length) {
+            setMessages((prev) => {
+              const existing = prev.find((message) => message.id === "assistant");
+              if (existing) {
+                const updated = prev.map((message) =>
+                  message.id === "assistant"
+                    ? {
+                        ...message,
+                        cards: [...(message.cards ?? []), ...incomingCards]
+                      }
+                    : message
+                );
+                return updated;
+              }
+              return [
+                ...prev,
+                {
+                  id: "assistant",
+                  role: "assistant",
+                  cards: incomingCards
+                }
+              ];
+            });
+            appendMemory([
+              `User: ${trimmed}`,
+              `Assistant: ${incomingCards
+                .flatMap((card) => card.bullets ?? [])
+                .slice(0, 2)
+                .join(" ")}`
+            ]);
+          }
+        }
       }
       setLoading(false);
-      eventSource.close();
+    };
+
+    startChat().catch(() => {
+      setLoading(false);
       setMessages((prev) => [
         ...prev,
         {
@@ -103,17 +304,13 @@ export function ChatStream({ topic, matchId }: { topic: string; matchId?: string
             {
               id: `warning-${Date.now()}`,
               type: "warning",
-              title: "Streaming unavailable",
-              content: "We could not reach the live stream. Please try again in a moment."
+              title: "Chat unavailable",
+              content: "We could not reach the assistant. Please try again."
             }
           ]
         }
       ]);
-    };
-  };
-
-  const toggleExpand = (id: string) => {
-    setExpandedCards((prev) => ({ ...prev, [id]: !prev[id] }));
+    });
   };
 
   return (
@@ -134,30 +331,49 @@ export function ChatStream({ topic, matchId }: { topic: string; matchId?: string
               )}
               {message.role === "assistant" &&
                 message.cards?.map((card) => (
-                  <div key={card.id} className="space-y-2">
-                    <CardRenderer
-                      card={{
-                        ...card,
-                        content:
-                          expandedCards[card.id] || !card.content
-                            ? card.content
-                            : `${card.content.slice(0, 140)}...`,
-                        bullets:
-                          expandedCards[card.id] || !card.bullets
-                            ? card.bullets
-                            : card.bullets.slice(0, 2)
-                      }}
-                    />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-xs"
-                      onClick={() => toggleExpand(card.id)}
-                    >
-                      {expandedCards[card.id] ? "Collapse" : "Expand"}
-                    </Button>
+                  <div
+                    key={card.id}
+                    className="mr-auto max-w-[85%] rounded-2xl border border-ink-100 bg-white px-4 py-3 text-sm text-ink-800 shadow-sm"
+                  >
+                    <div className="space-y-2">
+                      <p className="text-sm font-semibold text-ink-900">{card.title}</p>
+                      {card.content && <p className="text-sm text-ink-600">{card.content}</p>}
+                      {card.bullets && (
+                        <ul className="list-disc space-y-1 pl-5 text-sm text-ink-600">
+                          {card.bullets.map((bullet) => (
+                            <li key={bullet}>{bullet}</li>
+                          ))}
+                        </ul>
+                      )}
+                      {card.table && (
+                        <div className="overflow-x-auto">
+                          <table className="min-w-full text-left text-xs text-ink-600">
+                            <thead className="text-[10px] uppercase text-ink-400">
+                              <tr>
+                                {card.table.headers.map((header) => (
+                                  <th key={header} className="px-2 py-2">
+                                    {header}
+                                  </th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {card.table.rows.map((row, index) => (
+                                <tr key={`${row[0]}-${index}`} className="border-t border-ink-100">
+                                  {row.map((cell) => (
+                                    <td key={cell} className="px-2 py-2">
+                                      {cell}
+                                    </td>
+                                  ))}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
                   </div>
-              ))}
+                ))}
             </div>
           ))}
           {loading && (
@@ -174,13 +390,23 @@ export function ChatStream({ topic, matchId }: { topic: string; matchId?: string
             value={input}
             onChange={(event) => setInput(event.target.value)}
             rows={2}
-            placeholder="Type your message…"
+            placeholder={placeholder ?? "Type your message…"}
             className="min-h-[56px] flex-1 resize-none rounded-2xl border border-ink-100 p-3 text-sm outline-none focus:border-ink-300"
+            disabled={!token && freeChats >= 3}
           />
-          <Button onClick={handleSend} size="sm" className="h-11 px-4">
+          <Button onClick={handleSend} size="sm" className="h-11 px-4" disabled={!token && freeChats >= 3}>
             Send
           </Button>
         </div>
+        {!token && freeChats >= 3 && (
+          <div className="mt-3 rounded-2xl border border-ink-100 bg-white px-4 py-3 text-sm text-ink-600">
+            <p className="font-medium text-ink-900">Sign in to continue the chat.</p>
+            <p className="mt-1 text-xs text-ink-500">You’ve used your 3 free messages.</p>
+            <div className="mt-3">
+              <GoogleLoginButton onSuccess={() => setToken(getAuth().token)} />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

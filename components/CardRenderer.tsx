@@ -1,6 +1,5 @@
 import { CardResponse } from "@/lib/types";
 import { Card } from "./Card";
-import { ConfidenceBar } from "./ConfidenceBar";
 import { Button } from "./Button";
 
 const typeStyles: Record<CardResponse["type"], string> = {
@@ -16,7 +15,6 @@ const typeStyles: Record<CardResponse["type"], string> = {
 export function CardRenderer({ card }: { card: CardResponse }) {
   return (
     <Card title={card.title} className={typeStyles[card.type]}>
-      {card.confidence !== undefined && <ConfidenceBar value={card.confidence} />}
       {card.content && <p className="text-sm text-ink-600">{card.content}</p>}
       {card.bullets && (
         <ul className="list-disc space-y-2 pl-5 text-sm text-ink-600">

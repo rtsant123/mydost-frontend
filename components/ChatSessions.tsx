@@ -14,23 +14,22 @@ export function ChatSessions() {
   const [active, setActive] = useState(sessions[0]);
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[0.6fr_1fr]">
-      <Card title="All sessions">
-        <div className="space-y-3">
-          {sessions.map((session) => (
-            <button
-              key={session.id}
-              className={`w-full rounded-xl border border-ink-100 p-4 text-left transition hover:border-ink-200 ${
-                active.id === session.id ? "bg-ink-50" : "bg-white"
-              }`}
-              onClick={() => setActive(session)}
-            >
-              <p className="text-sm font-medium text-ink-900 capitalize">{session.topic}</p>
-              <p className="text-xs text-ink-500">{session.last}</p>
-            </button>
-          ))}
-        </div>
-      </Card>
+    <div className="space-y-4">
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        {sessions.map((session) => (
+          <button
+            key={session.id}
+            className={`whitespace-nowrap rounded-full border px-4 py-2 text-sm transition ${
+              active.id === session.id
+                ? "border-ink-900 bg-ink-900 text-white"
+                : "border-ink-100 bg-white text-ink-600"
+            }`}
+            onClick={() => setActive(session)}
+          >
+            {session.topic}
+          </button>
+        ))}
+      </div>
 
       <Card title={`Chat: ${active.topic}`}>
         <ChatStream topic={active.topic} />
