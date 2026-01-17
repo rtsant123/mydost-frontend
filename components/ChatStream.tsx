@@ -330,50 +330,77 @@ export function ChatStream({
                 </div>
               )}
               {message.role === "assistant" &&
-                message.cards?.map((card) => (
-                  <div
-                    key={card.id}
-                    className="mr-auto max-w-[85%] rounded-2xl border border-ink-100 bg-white px-4 py-3 text-sm text-ink-800 shadow-sm"
-                  >
-                    <div className="space-y-2">
-                      <p className="text-sm font-semibold text-ink-900">{card.title}</p>
-                      {card.content && <p className="text-sm text-ink-600">{card.content}</p>}
-                      {card.bullets && (
-                        <ul className="list-disc space-y-1 pl-5 text-sm text-ink-600">
-                          {card.bullets.map((bullet) => (
-                            <li key={bullet}>{bullet}</li>
-                          ))}
-                        </ul>
-                      )}
-                      {card.table && (
-                        <div className="overflow-x-auto">
-                          <table className="min-w-full text-left text-xs text-ink-600">
-                            <thead className="text-[10px] uppercase text-ink-400">
-                              <tr>
-                                {card.table.headers.map((header) => (
-                                  <th key={header} className="px-2 py-2">
-                                    {header}
-                                  </th>
-                                ))}
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {card.table.rows.map((row, index) => (
-                                <tr key={`${row[0]}-${index}`} className="border-t border-ink-100">
-                                  {row.map((cell) => (
-                                    <td key={cell} className="px-2 py-2">
-                                      {cell}
-                                    </td>
+                message.cards?.map((card) => {
+                  const isSimpleAnswer =
+                    card.type === "answer" && !card.table && !card.cta;
+                  const textParts = [card.content, ...(card.bullets ?? [])].filter(Boolean);
+
+                  if (isSimpleAnswer) {
+                    return (
+                      <div
+                        key={card.id}
+                        className="mr-auto max-w-[85%] rounded-2xl border border-ink-100 bg-white px-4 py-3 text-sm text-ink-800 shadow-sm"
+                      >
+                        {textParts.length > 0 ? (
+                          <div className="space-y-2">
+                            {textParts.map((part, idx) => (
+                              <p key={`${card.id}-part-${idx}`} className="text-sm text-ink-700">
+                                {part}
+                              </p>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-ink-600">No response available.</p>
+                        )}
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div
+                      key={card.id}
+                      className="mr-auto max-w-[92%] rounded-2xl border border-ink-100 bg-white px-4 py-3 text-sm text-ink-800 shadow-sm"
+                    >
+                      <div className="space-y-2">
+                        <p className="text-sm font-semibold text-ink-900">{card.title}</p>
+                        {card.content && <p className="text-sm text-ink-600">{card.content}</p>}
+                        {card.bullets && (
+                          <ul className="list-disc space-y-1 pl-5 text-sm text-ink-600">
+                            {card.bullets.map((bullet) => (
+                              <li key={bullet}>{bullet}</li>
+                            ))}
+                          </ul>
+                        )}
+                        {card.table && (
+                          <div className="overflow-x-auto">
+                            <table className="min-w-full text-left text-xs text-ink-600">
+                              <thead className="text-[10px] uppercase text-ink-400">
+                                <tr>
+                                  {card.table.headers.map((header) => (
+                                    <th key={header} className="px-2 py-2">
+                                      {header}
+                                    </th>
                                   ))}
                                 </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
+                              </thead>
+                              <tbody>
+                                {card.table.rows.map((row, index) => (
+                                  <tr key={`${row[0]}-${index}`} className="border-t border-ink-100">
+                                    {row.map((cell) => (
+                                      <td key={cell} className="px-2 py-2">
+                                        {cell}
+                                      </td>
+                                    ))}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
             </div>
           ))}
           {loading && (
