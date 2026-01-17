@@ -128,7 +128,79 @@ export function ChatStream({
   const handleSend = () => {
     if (!input.trim()) return;
     const trimmed = input.trim();
-    if (!token) return;
+    if (!token) {
+      const eventSource = new EventSource(`${streamUrl}&q=${encodeURIComponent(message)}`);
+      let completed = false;
+      let lastCards: CardResponse[] = [];
+
+      eventSource.onmessage = (event) => {
+        const data = JSON.parse(event.data) as { card?: CardResponse | { cards?: CardResponse[] }; done?: boolean };
+        const incomingCards = withIds(normalizeCards(data.card));
+        if (incomingCards.length) {
+          lastCards = incomingCards;
+          setMessages((prev) => {
+            const existing = prev.find((message) => message.id === assistantId);
+            if (existing) {
+              const updated = prev.map((message) =>
+                message.id === assistantId
+                  ? {
+                      ...message,
+                      cards: [...(message.cards ?? []), ...incomingCards]
+                    }
+                  : message
+              );
+              return updated;
+            }
+            return [
+              ...prev,
+              {
+                id: assistantId,
+                role: "assistant",
+                cards: incomingCards
+              }
+            ];
+          });
+        }
+        if (data.done) {
+          setLoading(false);
+          completed = true;
+          eventSource.close();
+          appendMemory([
+            `User: ${trimmed}`,
+            `Assistant: ${lastCards
+              .flatMap((card) => card.bullets ?? [])
+              .slice(0, 2)
+              .join(" ")}`
+          ]);
+        }
+      };
+
+      eventSource.onerror = () => {
+        if (completed) {
+          eventSource.close();
+          return;
+        }
+        setLoading(false);
+        eventSource.close();
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `error-${Date.now()}`,
+            role: "assistant",
+            cards: [
+              {
+                id: `warning-${Date.now()}`,
+                type: "warning",
+                title: "Streaming unavailable",
+                content: "We could not reach the live stream. Please try again in a moment."
+              }
+            ]
+          }
+        ]);
+      };
+
+      return;
+    }
     const assistantId = `assistant-${Date.now()}`;
     setMessages((prev) => [...prev, createUserMessage(trimmed)]);
     setInput("");
@@ -353,19 +425,19 @@ export function ChatStream({
             rows={2}
             placeholder={placeholder ?? "Type your message…"}
             className="min-h-[56px] flex-1 resize-none rounded-2xl border border-ink-100 p-3 text-sm outline-none focus:border-ink-300"
-            disabled={!token}
+            disabled={false}
             spellCheck
             autoCorrect="on"
             autoCapitalize="sentences"
           />
-          <Button onClick={handleSend} size="sm" className="h-11 px-4" disabled={!token}>
+          <Button onClick={handleSend} size="sm" className="h-11 px-4">
             Send
           </Button>
         </div>
         {!token && (
           <div className="mt-3 rounded-2xl border border-ink-100 bg-white px-4 py-3 text-sm text-ink-600">
-            <p className="font-medium text-ink-900">Sign in to start chatting.</p>
-            <p className="mt-1 text-xs text-ink-500">Your chats will be saved to memory.</p>
+            <p className="font-medium text-ink-900">Sign in to save memory.</p>
+            <p className="mt-1 text-xs text-ink-500">You can chat without signing in.</p>
             <div className="mt-3">
               <GoogleLoginButton onSuccess={() => setToken(getAuth().token)} />
             </div>
