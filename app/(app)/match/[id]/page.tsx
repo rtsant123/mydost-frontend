@@ -5,7 +5,7 @@ import { ChatStream } from "@/components/ChatStream";
 import { keyFactors, matchBrief, postMatchCards } from "@/lib/mock-data";
 
 export default function MatchPage({ params }: { params: { id: string } }) {
-  const matchStatus = "Live";
+  const matchStatus: "Live" | "Final" = "Live";
   const matchEnded = matchStatus === "Final";
 
   return (
