@@ -117,8 +117,13 @@ export function ChatStream({ topic, matchId }: { topic: string; matchId?: string
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
-      <div className="rounded-3xl border border-ink-100 bg-white p-5 shadow-card">
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-5">
+      <div className="space-y-4">
+        {messages.length === 0 && (
+          <div className="rounded-3xl border border-ink-100 bg-white/70 px-5 py-6 text-center text-sm text-ink-500">
+            Start a chat by sending a message below.
+          </div>
+        )}
         <div className="space-y-4">
           {messages.map((message) => (
             <div key={message.id} className="space-y-3">
@@ -152,7 +157,7 @@ export function ChatStream({ topic, matchId }: { topic: string; matchId?: string
                       {expandedCards[card.id] ? "Collapse" : "Expand"}
                     </Button>
                   </div>
-                ))}
+              ))}
             </div>
           ))}
           {loading && (
@@ -163,17 +168,16 @@ export function ChatStream({ topic, matchId }: { topic: string; matchId?: string
           )}
         </div>
       </div>
-      <div className="sticky bottom-4 flex flex-col gap-3 rounded-3xl border border-ink-100 bg-white/95 p-4 shadow-card backdrop-blur">
-        <textarea
-          value={input}
-          onChange={(event) => setInput(event.target.value)}
-          rows={3}
-          placeholder="Ask mydost anything..."
-          className="w-full resize-none rounded-2xl border border-ink-100 p-3 text-sm outline-none focus:border-ink-300"
-        />
-        <div className="flex items-center justify-between">
-          <p className="text-xs text-ink-400">Responses stream live. Entertainment only.</p>
-          <Button onClick={handleSend} size="sm">
+      <div className="sticky bottom-4 rounded-3xl border border-ink-100 bg-white/95 p-3 shadow-card backdrop-blur">
+        <div className="flex items-end gap-3">
+          <textarea
+            value={input}
+            onChange={(event) => setInput(event.target.value)}
+            rows={2}
+            placeholder="Type your message…"
+            className="min-h-[56px] flex-1 resize-none rounded-2xl border border-ink-100 p-3 text-sm outline-none focus:border-ink-300"
+          />
+          <Button onClick={handleSend} size="sm" className="h-11 px-4">
             Send
           </Button>
         </div>
