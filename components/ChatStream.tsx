@@ -127,6 +127,12 @@ export function ChatStream({
   }, []);
 
   useEffect(() => {
+    setMessages([]);
+    setInput("");
+    setLoading(false);
+  }, [topic]);
+
+  useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, loading]);
 
@@ -327,7 +333,7 @@ export function ChatStream({
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-5">
       <div className="space-y-4">
         <div className="space-y-4">
-          {messages.map((message) => (
+          {[...messages].reverse().map((message) => (
             <div key={message.id} className="space-y-3">
               {message.role === "user" && (
                 <div className="ml-auto max-w-[80%] rounded-2xl bg-ink-900 px-4 py-3 text-sm text-white shadow-sm">
