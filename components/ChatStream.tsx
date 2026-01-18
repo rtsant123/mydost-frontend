@@ -332,8 +332,8 @@ export function ChatStream({
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-5">
-      <div className="space-y-4">
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 pb-28">
+      <div className="rounded-3xl bg-ink-100/70 p-4 sm:p-6">
         <div className="space-y-4">
           {messages.map((message) => {
             if (message.role === "user") {
@@ -415,14 +415,14 @@ export function ChatStream({
           <div ref={endRef} />
         </div>
       </div>
-      <div className="rounded-3xl border border-ink-100 bg-white p-3 shadow-card">
-        <div className="flex items-end gap-3">
+      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-ink-100 bg-white/95 px-4 pb-4 pt-3 backdrop-blur sm:px-6">
+        <div className="mx-auto flex w-full max-w-2xl items-end gap-3">
           <textarea
             value={input}
             onChange={(event) => setInput(event.target.value)}
             rows={2}
             placeholder={placeholder ?? "Type your message…"}
-            className="min-h-[56px] flex-1 resize-none rounded-2xl border border-ink-100 p-3 text-sm outline-none focus:border-ink-300"
+            className="min-h-[52px] flex-1 resize-none rounded-2xl border border-ink-100 bg-white p-3 text-sm outline-none focus:border-ink-300"
             disabled={false}
             spellCheck
             autoCorrect="on"
@@ -433,7 +433,7 @@ export function ChatStream({
           </Button>
         </div>
         {!token && (
-          <div className="mt-3 rounded-2xl border border-ink-100 bg-white px-4 py-3 text-sm text-ink-600">
+          <div className="mx-auto mt-3 w-full max-w-2xl rounded-2xl border border-ink-100 bg-white px-4 py-3 text-sm text-ink-600">
             <p className="font-medium text-ink-900">Sign in to save memory.</p>
             <p className="mt-1 text-xs text-ink-500">You can chat without signing in.</p>
             <div className="mt-3">
