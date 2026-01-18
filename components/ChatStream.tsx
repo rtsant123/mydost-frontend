@@ -113,20 +113,41 @@ export function ChatStream({
     }));
   };
 
-  const extractCleanText = (value: string) => {
-    const trimmed = value.trim();
-    if (!trimmed.startsWith("{")) return trimmed;
-    try {
-      const parsed = JSON.parse(trimmed) as {
-        content?: string;
-        value?: string;
-        text?: string;
-        title?: string;
-      };
-      return parsed.content ?? parsed.value ?? parsed.text ?? parsed.title ?? trimmed;
-    } catch (error) {
-      return trimmed;
+  const extractCleanText = (value: unknown) => {
+    if (value === null || value === undefined) return "";
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (!trimmed.startsWith("{")) return trimmed;
+      try {
+        const parsed = JSON.parse(trimmed) as {
+          content?: string;
+          value?: string;
+          text?: string;
+          title?: string;
+        };
+        return parsed.content ?? parsed.value ?? parsed.text ?? parsed.title ?? trimmed;
+      } catch (error) {
+        return trimmed;
+      }
     }
+    if (typeof value === "object") {
+      const record = value as Record<string, unknown>;
+      const candidate =
+        record.content ??
+        record.value ??
+        record.text ??
+        record.title ??
+        record.message ??
+        record.summary;
+      if (typeof candidate === "string") return candidate;
+      if (record.headers || record.rows) return "";
+      try {
+        return JSON.stringify(value);
+      } catch (error) {
+        return "";
+      }
+    }
+    return String(value);
   };
 
   useEffect(() => {
@@ -360,8 +381,8 @@ export function ChatStream({
             const cards = message.cards ?? [];
             const plainText = cards
               .flatMap((card) => [card.content, ...(card.bullets ?? [])])
-              .filter(Boolean)
-              .map((part) => extractCleanText(String(part)))
+              .map((part) => extractCleanText(part))
+              .filter((part) => part.length > 0)
               .join("\n\n");
 
             const tables = cards.filter((card) => card.table);
