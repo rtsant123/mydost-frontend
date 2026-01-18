@@ -335,7 +335,7 @@ export function ChatStream({
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-5">
       <div className="space-y-4">
         <div className="space-y-4">
-          {[...messages].reverse().map((message) => {
+          {messages.map((message) => {
             if (message.role === "user") {
               return (
                 <div key={message.id} className="flex justify-end">
@@ -415,7 +415,7 @@ export function ChatStream({
           <div ref={endRef} />
         </div>
       </div>
-      <div className="sticky bottom-4 rounded-3xl border border-ink-100 bg-white/95 p-3 shadow-card backdrop-blur">
+      <div className="rounded-3xl border border-ink-100 bg-white p-3 shadow-card">
         <div className="flex items-end gap-3">
           <textarea
             value={input}
