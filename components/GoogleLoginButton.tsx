@@ -47,11 +47,11 @@ const loadScript = (src: string) =>
 export function GoogleLoginButton({ onSuccess }: GoogleLoginButtonProps) {
   const buttonRef = useRef<HTMLDivElement | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const hasClientId = Boolean(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID);
 
   useEffect(() => {
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
     if (!clientId) {
-      setError("Missing Google client ID.");
       return;
     }
 
@@ -95,6 +95,8 @@ export function GoogleLoginButton({ onSuccess }: GoogleLoginButtonProps) {
       })
       .catch(() => setError("Google login failed to load."));
   }, [onSuccess]);
+
+  if (!hasClientId) return null;
 
   return (
     <div className="space-y-2">

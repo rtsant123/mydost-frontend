@@ -1,18 +1,28 @@
 "use client";
 
-import { useState } from "react";
-import { Card } from "./Card";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { ChatStream } from "./ChatStream";
 
 const sessions = [
-  { id: "dost-1", topic: "dost", last: "Talk to your assistant" },
-  { id: "sports-1", topic: "sports", last: "Who has better form today?" },
-  { id: "teer-1", topic: "teer", last: "Summarize last 30 days." },
-  { id: "astro-1", topic: "astrology", last: "Today vibes in Hinglish" }
+  { id: "dost-1", topic: "dost", label: "Dost" },
+  { id: "sports-1", topic: "sports", label: "Sports" },
+  { id: "teer-1", topic: "teer", label: "Teer" },
+  { id: "astro-1", topic: "astrology", label: "Astrology" }
 ];
 
 export function ChatSessions() {
+  const params = useSearchParams();
   const [active, setActive] = useState(sessions[0]);
+
+  useEffect(() => {
+    const topic = params.get("topic");
+    if (!topic) return;
+    const found = sessions.find((session) => session.topic === topic);
+    if (found) {
+      setActive(found);
+    }
+  }, [params]);
 
   return (
     <div className="space-y-4">
@@ -27,14 +37,12 @@ export function ChatSessions() {
             }`}
             onClick={() => setActive(session)}
           >
-            {session.topic}
+            {session.label}
           </button>
         ))}
       </div>
 
-      <Card title={`Chat: ${active.topic}`}>
-        <ChatStream topic={active.topic} />
-      </Card>
+      <ChatStream topic={active.topic} />
     </div>
   );
 }
