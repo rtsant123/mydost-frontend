@@ -49,6 +49,10 @@ export default function HomePage() {
           {
             title: "Astrology",
             copy: "Guided intake + personalized chat session."
+          },
+          {
+            title: "Markets",
+            copy: "Live crypto and stock prices in one view."
           }
         ].map((item) => (
           <Card key={item.title} title={item.title}>

@@ -8,7 +8,8 @@ const sessions = [
   { id: "dost-1", topic: "dost", label: "Dost" },
   { id: "sports-1", topic: "sports", label: "Sports" },
   { id: "teer-1", topic: "teer", label: "Teer" },
-  { id: "astro-1", topic: "astrology", label: "Astrology" }
+  { id: "astro-1", topic: "astrology", label: "Astrology" },
+  { id: "markets-1", topic: "markets", label: "Markets" }
 ];
 
 export function ChatSessions() {

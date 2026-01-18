@@ -18,7 +18,8 @@ export function AppHeader() {
             { label: "Dost", href: "/chat" },
             { label: "Sports", href: "/sports" },
             { label: "Teer", href: "/teer" },
-            { label: "Astrology", href: "/astrology" }
+            { label: "Astrology", href: "/astrology" },
+            { label: "Markets", href: "/markets" }
           ].map((item) => (
             <Link
               key={item.href}

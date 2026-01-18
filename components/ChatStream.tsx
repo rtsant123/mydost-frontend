@@ -149,7 +149,7 @@ export function ChatStream({
     const combinedPrefix = [contextPrefix, memoryPrefix].filter(Boolean).join("\n\n");
     const message = combinedPrefix ? `${combinedPrefix}\n\nUser: ${trimmed}` : trimmed;
 
-    const shouldUsePublicStream = !token || topic === "dost";
+    const shouldUsePublicStream = !token || topic === "dost" || topic === "markets";
 
     if (shouldUsePublicStream) {
       const eventSource = new EventSource(`${streamUrl}&q=${encodeURIComponent(message)}`);
