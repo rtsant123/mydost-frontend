@@ -86,14 +86,24 @@ export function ChatStream({
     return cards.map((card: any, index: number) => ({
       id: card.id ?? `card-${Date.now()}-${index}`,
       type: card.type ?? "answer",
-      title: card.title ?? "Response",
+      title: card.title ?? card.value?.title ?? "Response",
       confidence: card.confidence,
       bullets: card.bullets,
-      content: card.content,
+      content: card.content ?? card.value?.content ?? card.value?.text,
       table: card.table
         ? {
             headers: card.table.columns ?? card.table.headers ?? [],
             rows: card.table.rows ?? []
+          }
+        : card.value?.headers || card.value?.rows
+        ? {
+            headers: card.value?.headers ?? [],
+            rows: card.value?.rows ?? []
+          }
+        : card.headers || card.rows
+        ? {
+            headers: card.headers ?? [],
+            rows: card.rows ?? []
           }
         : undefined,
       cta: card.cta?.map((item: any) => ({
