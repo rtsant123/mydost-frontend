@@ -51,35 +51,6 @@ export function ChatStream({
     return `${API_BASE_URL}/chat/stream?${params.toString()}`;
   }, [topic, matchId]);
 
-  const getMemoryKey = (scope: "global" | "topic") =>
-    scope === "global" ? "mydost_memory_global" : `mydost_memory_${topic}`;
-
-  const loadMemory = (key: string) => {
-    if (typeof window === "undefined") return [] as string[];
-    const raw = window.localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as string[]) : [];
-  };
-
-  const saveMemory = (key: string, entries: string[]) => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(key, JSON.stringify(entries.slice(-10)));
-  };
-
-  const appendMemory = (entries: string[]) => {
-    const globalKey = getMemoryKey("global");
-    const topicKey = getMemoryKey("topic");
-    saveMemory(globalKey, [...loadMemory(globalKey), ...entries]);
-    saveMemory(topicKey, [...loadMemory(topicKey), ...entries]);
-  };
-
-  const buildMemoryPrefix = () => {
-    const global = loadMemory(getMemoryKey("global")).slice(-4);
-    const domain = loadMemory(getMemoryKey("topic")).slice(-4);
-    const combined = [...global, ...domain].slice(-6);
-    if (!combined.length) return "";
-    return `Memory:\n${combined.map((line) => `- ${line}`).join("\n")}`;
-  };
-
   const toCardResponses = (payload: any): CardResponse[] => {
     if (!payload) return [];
     const cards = Array.isArray(payload.cards) ? payload.cards : normalizeCards(payload as any);
@@ -176,9 +147,7 @@ export function ChatStream({
     setInput("");
     setLoading(true);
 
-    const memoryPrefix = buildMemoryPrefix();
-    const combinedPrefix = [contextPrefix, memoryPrefix].filter(Boolean).join("\n\n");
-    const message = combinedPrefix ? `${combinedPrefix}\n\nUser: ${trimmed}` : trimmed;
+    const message = contextPrefix ? `${contextPrefix}\n\nUser: ${trimmed}` : trimmed;
 
     const shouldUsePublicStream = !token || topic === "dost" || topic === "markets";
 
@@ -219,13 +188,6 @@ export function ChatStream({
           setLoading(false);
           completed = true;
           eventSource.close();
-          appendMemory([
-            `User: ${trimmed}`,
-            `Assistant: ${lastCards
-              .flatMap((card) => card.bullets ?? [])
-              .slice(0, 2)
-              .join(" ")}`
-          ]);
         }
       };
 
@@ -330,13 +292,6 @@ export function ChatStream({
                 }
               ];
             });
-            appendMemory([
-              `User: ${trimmed}`,
-              `Assistant: ${lastCards
-                .flatMap((card) => card.bullets ?? [])
-                .slice(0, 2)
-                .join(" ")}`
-            ]);
           }
         }
       }
