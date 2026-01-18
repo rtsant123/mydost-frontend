@@ -148,7 +148,9 @@ export function ChatStream({
     const combinedPrefix = [contextPrefix, memoryPrefix].filter(Boolean).join("\n\n");
     const message = combinedPrefix ? `${combinedPrefix}\n\nUser: ${trimmed}` : trimmed;
 
-    if (!token) {
+    const shouldUsePublicStream = !token || topic === "dost";
+
+    if (shouldUsePublicStream) {
       const eventSource = new EventSource(`${streamUrl}&q=${encodeURIComponent(message)}`);
       let completed = false;
       let lastCards: CardResponse[] = [];
@@ -333,88 +335,72 @@ export function ChatStream({
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-5">
       <div className="space-y-4">
         <div className="space-y-4">
-          {[...messages].reverse().map((message) => (
-            <div key={message.id} className="space-y-3">
-              {message.role === "user" && (
-                <div className="ml-auto max-w-[80%] rounded-2xl bg-ink-900 px-4 py-3 text-sm text-white shadow-sm">
-                  {message.text}
+          {[...messages].reverse().map((message) => {
+            if (message.role === "user") {
+              return (
+                <div key={message.id} className="flex justify-end">
+                  <div className="max-w-[80%] rounded-2xl bg-ink-900 px-4 py-3 text-sm text-white shadow-sm">
+                    {message.text}
+                  </div>
                 </div>
-              )}
-              {message.role === "assistant" &&
-                message.cards?.map((card) => {
-                  const isSimpleAnswer = card.type === "answer" && !card.table && !card.cta;
-                  const textParts = [card.content, ...(card.bullets ?? [])]
-                    .filter(Boolean)
-                    .map((part) => extractCleanText(String(part)));
+              );
+            }
 
-                  if (isSimpleAnswer) {
-                    return (
-                      <div
-                        key={card.id}
-                        className="mr-auto max-w-[85%] rounded-2xl border border-ink-100 bg-white px-4 py-3 text-sm text-ink-800 shadow-sm"
-                      >
-                        {textParts.length > 0 ? (
-                          <div className="space-y-2">
-                            {textParts.map((part, idx) => (
-                              <p key={`${card.id}-part-${idx}`} className="text-sm text-ink-700">
-                                {part}
-                              </p>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-sm text-ink-600">No response available.</p>
-                        )}
-                      </div>
-                    );
-                  }
+            const cards = message.cards ?? [];
+            const plainText = cards
+              .flatMap((card) => [card.content, ...(card.bullets ?? [])])
+              .filter(Boolean)
+              .map((part) => extractCleanText(String(part)))
+              .join("\n\n");
 
-                  return (
-                    <div
-                      key={card.id}
-                      className="mr-auto max-w-[92%] rounded-2xl border border-ink-100 bg-white px-4 py-3 text-sm text-ink-800 shadow-sm"
-                    >
-                      <div className="space-y-2">
-                        <p className="text-sm font-semibold text-ink-900">{card.title}</p>
-                        {card.content && <p className="text-sm text-ink-600">{card.content}</p>}
-                        {card.bullets && (
-                          <ul className="list-disc space-y-1 pl-5 text-sm text-ink-600">
-                            {card.bullets.map((bullet) => (
-                              <li key={bullet}>{bullet}</li>
+            const tables = cards.filter((card) => card.table);
+
+            return (
+              <div key={message.id} className="space-y-3">
+                <div className="flex justify-start">
+                  <div className="max-w-[85%] rounded-2xl border border-ink-100 bg-white px-4 py-3 text-sm text-ink-800 shadow-sm">
+                    {plainText ? (
+                      <div className="whitespace-pre-line text-sm text-ink-700">{plainText}</div>
+                    ) : (
+                      <p className="text-sm text-ink-600">No response available.</p>
+                    )}
+                  </div>
+                </div>
+                {tables.map((card, index) => (
+                  <div
+                    key={`${message.id}-table-${index}`}
+                    className="max-w-[92%] rounded-2xl border border-ink-100 bg-white px-4 py-3 text-sm text-ink-800 shadow-sm"
+                  >
+                    <p className="text-sm font-semibold text-ink-900">{card.title}</p>
+                    <div className="mt-2 overflow-x-auto">
+                      <table className="min-w-full text-left text-xs text-ink-600">
+                        <thead className="text-[10px] uppercase text-ink-400">
+                          <tr>
+                            {card.table?.headers.map((header) => (
+                              <th key={header} className="px-2 py-2">
+                                {header}
+                              </th>
                             ))}
-                          </ul>
-                        )}
-                        {card.table && (
-                          <div className="overflow-x-auto">
-                            <table className="min-w-full text-left text-xs text-ink-600">
-                              <thead className="text-[10px] uppercase text-ink-400">
-                                <tr>
-                                  {card.table.headers.map((header) => (
-                                    <th key={header} className="px-2 py-2">
-                                      {header}
-                                    </th>
-                                  ))}
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {card.table.rows.map((row, index) => (
-                                  <tr key={`${row[0]}-${index}`} className="border-t border-ink-100">
-                                    {row.map((cell) => (
-                                      <td key={cell} className="px-2 py-2">
-                                        {cell}
-                                      </td>
-                                    ))}
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        )}
-                      </div>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {card.table?.rows.map((row, rowIndex) => (
+                            <tr key={`${row[0]}-${rowIndex}`} className="border-t border-ink-100">
+                              {row.map((cell) => (
+                                <td key={cell} className="px-2 py-2">
+                                  {cell}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
-                  );
-                })}
-            </div>
-          ))}
+                  </div>
+                ))}
+              </div>
+            );
+          })}
           {loading && (
             <div className="card card-section">
               <div className="skeleton h-4 w-2/3" />
