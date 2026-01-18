@@ -334,7 +334,7 @@ export function ChatStream({
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 pb-28">
-      <div className="h-[calc(100vh-220px)] overflow-y-auto pr-1">
+      <div className="h-[calc(100vh-220px)] overflow-y-auto pr-1 pb-24">
         <div className="space-y-4">
           {messages.map((message) => {
             if (message.role === "user") {
@@ -413,7 +413,7 @@ export function ChatStream({
               Ask a question to start the chat.
             </p>
           )}
-          <div ref={endRef} />
+          <div ref={endRef} className="scroll-mb-24" />
         </div>
       </div>
       <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-ink-100 bg-white/95 px-4 pb-4 pt-3 backdrop-blur sm:px-6">
