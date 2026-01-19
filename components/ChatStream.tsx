@@ -206,75 +206,75 @@ export function ChatStream({
                 </div>
               </div>
             )}
-            {message.role === "assistant" &&
-              message.cards?.map((card) => {
-                const isExpanded = expandedCards[card.id];
-                const content =
-                  isExpanded || !card.content ? card.content : `${card.content.slice(0, 140)}...`;
-                const bullets =
-                  isExpanded || !card.bullets ? card.bullets : card.bullets.slice(0, 2);
-                const isExpandable =
-                  (card.content && card.content.length > 140) ||
-                  (card.bullets && card.bullets.length > 2);
+            {message.role === "assistant" && message.cards?.length ? (
+              <div className="flex justify-start">
+                <div className="max-w-[85%] space-y-4 rounded-2xl border border-ink-100 bg-white px-4 py-3 text-sm text-ink-700 shadow-card">
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-ink-400">Dost</p>
+                  {message.cards.map((card, index) => {
+                    const isExpanded = expandedCards[card.id];
+                    const content =
+                      isExpanded || !card.content ? card.content : `${card.content.slice(0, 140)}...`;
+                    const bullets =
+                      isExpanded || !card.bullets ? card.bullets : card.bullets.slice(0, 2);
+                    const isExpandable =
+                      (card.content && card.content.length > 140) ||
+                      (card.bullets && card.bullets.length > 2);
+                    const showTitle =
+                      Boolean(card.title) &&
+                      (message.cards.length > 1 || card.title?.toLowerCase() !== "response");
 
-                return (
-                  <div key={card.id} className="flex justify-start">
-                    <div className="max-w-[85%] space-y-3 rounded-2xl border border-ink-100 bg-white px-4 py-3 text-sm text-ink-700 shadow-card">
-                      <div>
-                        <p className="text-[10px] uppercase tracking-[0.2em] text-ink-400">
-                          Dost
-                        </p>
-                        {card.title && (
-                          <p className="mt-1 text-sm font-semibold text-ink-900">
-                            {card.title}
-                          </p>
+                    return (
+                      <div key={card.id ?? `${message.id}-${index}`} className="space-y-2">
+                        {showTitle && (
+                          <p className="text-sm font-semibold text-ink-900">{card.title}</p>
                         )}
-                      </div>
-                      {content && <p>{content}</p>}
-                      {bullets && (
-                        <ul className="list-disc space-y-1 pl-5">
-                          {bullets.map((bullet) => (
-                            <li key={bullet}>{bullet}</li>
-                          ))}
-                        </ul>
-                      )}
-                      {card.table && (
-                        <div className="overflow-x-auto">
-                          <table className="min-w-full text-left text-xs text-ink-600">
-                            <thead className="text-[10px] uppercase text-ink-400">
-                              <tr>
-                                {card.table.headers.map((header) => (
-                                  <th key={header} className="px-2 py-1">
-                                    {header}
-                                  </th>
-                                ))}
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {card.table.rows.map((row, index) => (
-                                <tr key={`${row[0]}-${index}`} className="border-t border-ink-100">
-                                  {row.map((cell) => (
-                                    <td key={cell} className="px-2 py-1">
-                                      {cell}
-                                    </td>
+                        {content && <p>{content}</p>}
+                        {bullets && (
+                          <ul className="list-disc space-y-1 pl-5">
+                            {bullets.map((bullet) => (
+                              <li key={bullet}>{bullet}</li>
+                            ))}
+                          </ul>
+                        )}
+                        {card.table && (
+                          <div className="overflow-x-auto">
+                            <table className="min-w-full text-left text-xs text-ink-600">
+                              <thead className="text-[10px] uppercase text-ink-400">
+                                <tr>
+                                  {card.table.headers.map((header) => (
+                                    <th key={header} className="px-2 py-1">
+                                      {header}
+                                    </th>
                                   ))}
                                 </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                      {card.cta && (
-                        <div className="flex flex-wrap gap-2">
-                          {card.cta.map((item) => (
-                            <Button key={item.label} href={item.href} variant="secondary" size="sm">
-                              {item.label}
-                            </Button>
-                          ))}
-                        </div>
-                      )}
-                      {isExpandable && (
-                        <div>
+                              </thead>
+                              <tbody>
+                                {card.table.rows.map((row, rowIndex) => (
+                                  <tr
+                                    key={`${row[0] ?? "row"}-${rowIndex}`}
+                                    className="border-t border-ink-100"
+                                  >
+                                    {row.map((cell) => (
+                                      <td key={cell} className="px-2 py-1">
+                                        {cell}
+                                      </td>
+                                    ))}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                        {card.cta && (
+                          <div className="flex flex-wrap gap-2">
+                            {card.cta.map((item) => (
+                              <Button key={item.label} href={item.href} variant="secondary" size="sm">
+                                {item.label}
+                              </Button>
+                            ))}
+                          </div>
+                        )}
+                        {isExpandable && (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -283,12 +283,13 @@ export function ChatStream({
                           >
                             {isExpanded ? "Collapse" : "Expand"}
                           </Button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
           </div>
         ))}
         {loading && (
