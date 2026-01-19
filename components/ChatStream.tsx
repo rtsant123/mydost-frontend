@@ -13,6 +13,33 @@ const createUserMessage = (text: string): ChatMessage => ({
   text
 });
 
+const messageToText = (message: ChatMessage) => {
+  if (message.role === "user") return message.text?.trim() ?? "";
+  const parts: string[] = [];
+  for (const card of message.cards ?? []) {
+    if (card.title) parts.push(card.title);
+    if (card.content) parts.push(card.content);
+    if (card.bullets?.length) parts.push(card.bullets.join(" "));
+  }
+  return parts.join(" ").trim();
+};
+
+const buildRecentContext = (messages: ChatMessage[], maxMessages = 6, maxChars = 1200) => {
+  const recent = messages.slice(-maxMessages);
+  const lines = recent
+    .map((msg) => {
+      const text = messageToText(msg);
+      if (!text) return null;
+      return `${msg.role === "user" ? "User" : "Assistant"}: ${text}`;
+    })
+    .filter(Boolean) as string[];
+  let joined = lines.join("\n");
+  if (joined.length > maxChars) {
+    joined = joined.slice(-maxChars);
+  }
+  return joined;
+};
+
 const normalizeCards = (payload: unknown): CardResponse[] => {
   if (!payload) return [];
   if (Array.isArray(payload)) {
@@ -57,9 +84,8 @@ export function ChatStream({
   const streamUrl = useMemo(() => {
     const params = new URLSearchParams({ topic });
     if (matchId) params.set("matchId", matchId);
-    if (contextPrefix) params.set("context", contextPrefix);
     return `${API_BASE_URL}/chat/stream?${params.toString()}`;
-  }, [topic, matchId, contextPrefix]);
+  }, [topic, matchId]);
 
   useEffect(() => {
     const auth = getAuth();
@@ -84,7 +110,16 @@ export function ChatStream({
       clearTimeout(fallbackTimerRef.current);
     }
 
-    const eventSource = new EventSource(`${streamUrl}&q=${encodeURIComponent(input.trim())}`);
+    const trimmedInput = input.trim();
+    const recentContext = buildRecentContext(messages);
+    const combinedContext = [contextPrefix, recentContext].filter(Boolean).join("\n\n");
+    const params = new URLSearchParams({
+      topic,
+      q: trimmedInput
+    });
+    if (matchId) params.set("matchId", matchId);
+    if (combinedContext) params.set("context", combinedContext);
+    const eventSource = new EventSource(`${API_BASE_URL}/chat/stream?${params.toString()}`);
     eventSourceRef.current = eventSource;
 
     fallbackTimerRef.current = setTimeout(() => {
