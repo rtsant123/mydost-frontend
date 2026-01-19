@@ -5,6 +5,7 @@ import { API_BASE_URL } from "@/lib/api";
 import { getAuth } from "@/lib/auth";
 import { CardResponse, ChatMessage } from "@/lib/types";
 import { Button } from "./Button";
+import { CardRenderer } from "./CardRenderer";
 import { GoogleLoginButton } from "./GoogleLoginButton";
 
 const createUserMessage = (text: string): ChatMessage => ({
@@ -28,6 +29,8 @@ export function ChatStream({
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({});
+  const [token, setToken] = useState<string | null>(null);
+  const hasGoogleClientId = Boolean(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID);
 
   const streamUrl = useMemo(() => {
     const params = new URLSearchParams({ topic });
