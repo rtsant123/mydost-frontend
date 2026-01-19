@@ -14,6 +14,26 @@ const createUserMessage = (text: string): ChatMessage => ({
   text
 });
 
+const normalizeCards = (payload: unknown): CardResponse[] => {
+  if (!payload) return [];
+  if (Array.isArray(payload)) {
+    return payload as CardResponse[];
+  }
+  if (typeof payload === "object") {
+    const record = payload as Record<string, unknown>;
+    if (Array.isArray(record.cards)) {
+      return record.cards as CardResponse[];
+    }
+    if (record.card) {
+      return normalizeCards(record.card);
+    }
+    if (typeof record.type === "string") {
+      return [record as CardResponse];
+    }
+  }
+  return [];
+};
+
 export function ChatStream({
   topic,
   matchId,
@@ -97,14 +117,29 @@ export function ChatStream({
         clearTimeout(fallbackTimerRef.current);
         fallbackTimerRef.current = null;
       }
-      let data: { card?: CardResponse; done?: boolean } | null = null;
+      let data: Record<string, unknown> | null = null;
       try {
-        data = JSON.parse(event.data) as { card?: CardResponse; done?: boolean };
+        data = JSON.parse(event.data) as Record<string, unknown>;
       } catch {
-        data = { card: { id: `raw-${Date.now()}`, type: "answer", title: "Reply", content: event.data } };
+        data = {
+          card: {
+            id: `raw-${Date.now()}`,
+            type: "answer",
+            title: "Reply",
+            content: event.data
+          }
+        };
       }
-      const card = data.card;
-      if (card) {
+      if (data?.done) {
+        setLoading(false);
+        eventSource.close();
+        return;
+      }
+      const cards = normalizeCards(data).map((card, index) => ({
+        ...card,
+        id: card.id ?? `card-${Date.now()}-${index}`
+      }));
+      if (cards.length) {
         setMessages((prev) => {
           const existing = prev.find((message) => message.id === "assistant");
           if (existing) {
@@ -112,7 +147,7 @@ export function ChatStream({
               message.id === "assistant"
                 ? {
                     ...message,
-                    cards: [...(message.cards ?? []), card]
+                    cards: [...(message.cards ?? []), ...cards]
                   }
                 : message
             );
@@ -123,14 +158,10 @@ export function ChatStream({
             {
               id: "assistant",
               role: "assistant",
-              cards: [card]
+              cards: cards
             }
           ];
         });
-      }
-      if (data.done) {
-        setLoading(false);
-        eventSource.close();
       }
     };
 
