@@ -1,6 +1,6 @@
 import { DostChat } from "@/components/DostChat";
 
-export default function ChatPage() {
+export default function DostPage() {
   return (
     <main className="container-page space-y-6 py-10">
       <div className="space-y-2">

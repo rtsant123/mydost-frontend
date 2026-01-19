@@ -19,13 +19,7 @@ export function DostChat() {
   const contextPrefix = useMemo(() => `Preferred language: ${language}`, [language]);
 
   return (
-    <main className="container-page space-y-6 py-10">
-      <div className="space-y-2">
-        <p className="text-xs uppercase tracking-[0.22em] text-ink-400">Dost</p>
-        <h1 className="text-2xl font-semibold text-ink-900">Chat</h1>
-        <p className="text-sm text-ink-600">One focused chat with your assistant.</p>
-      </div>
-
+    <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3">
         <label className="text-xs font-semibold uppercase tracking-[0.2em] text-ink-400">
           Language
@@ -48,6 +42,6 @@ export function DostChat() {
         contextPrefix={contextPrefix}
         placeholder={`Ask in ${language}...`}
       />
-    </main>
+    </div>
   );
 }
