@@ -1,5 +1,5 @@
 import { DostChat } from "@/components/DostChat";
 
-export default function HomePage() {
+export default function ChatPage() {
   return <DostChat />;
 }
