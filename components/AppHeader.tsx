@@ -7,6 +7,14 @@ import { Button } from "./Button";
 import { PlanBadge } from "./PlanBadge";
 import { UsageMeter } from "./UsageMeter";
 
+const navLinks = [
+  { href: "/sports", label: "Sports" },
+  { href: "/teer", label: "Teer" },
+  { href: "/astrology", label: "Astrology" },
+  { href: "/chat", label: "Chats" },
+  { href: "/pricing", label: "Pricing" },
+];
+
 export function AppHeader() {
   const pathname = usePathname();
 
