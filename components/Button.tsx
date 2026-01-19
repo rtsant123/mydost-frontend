@@ -9,6 +9,7 @@ type ButtonProps = {
   className?: string;
   type?: "button" | "submit" | "reset";
   onClick?: () => void;
+  disabled?: boolean;
 };
 
 const baseStyles =
@@ -33,9 +34,16 @@ export function Button({
   className,
   children,
   type = "button",
-  onClick
+  onClick,
+  disabled = false
 }: ButtonProps) {
-  const classes = clsx(baseStyles, variants[variant], sizes[size], className);
+  const classes = clsx(
+    baseStyles,
+    variants[variant],
+    sizes[size],
+    disabled && "cursor-not-allowed opacity-60",
+    className
+  );
 
   if (href) {
     return (
@@ -46,7 +54,7 @@ export function Button({
   }
 
   return (
-    <button type={type} className={classes} onClick={onClick}>
+    <button type={type} className={classes} onClick={onClick} disabled={disabled}>
       {children}
     </button>
   );
