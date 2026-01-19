@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { API_BASE_URL } from "@/lib/api";
+import { getAuth } from "@/lib/auth";
 import { CardResponse, ChatMessage } from "@/lib/types";
 import { Button } from "./Button";
-import { CardRenderer } from "./CardRenderer";
+import { GoogleLoginButton } from "./GoogleLoginButton";
 
 const createUserMessage = (text: string): ChatMessage => ({
   id: `user-${Date.now()}`,
@@ -12,14 +13,21 @@ const createUserMessage = (text: string): ChatMessage => ({
   text
 });
 
-export function ChatStream({ topic, matchId }: { topic: string; matchId?: string }) {
+export function ChatStream({
+  topic,
+  matchId,
+  contextPrefix,
+  placeholder
+}: {
+  topic: string;
+  matchId?: string;
+  contextPrefix?: string;
+  placeholder?: string;
+}) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({});
-  const eventSourceRef = useRef<EventSource | null>(null);
-  const bottomRef = useRef<HTMLDivElement | null>(null);
-  const canSend = input.trim().length > 0 && !loading;
 
   const streamUrl = useMemo(() => {
     const params = new URLSearchParams({ topic });
@@ -27,66 +35,31 @@ export function ChatStream({ topic, matchId }: { topic: string; matchId?: string
     return `${API_BASE_URL}/chat/stream?${params.toString()}`;
   }, [topic, matchId]);
 
-  const suggestedPrompts = useMemo(() => {
-    switch (topic) {
-      case "sports":
-      case "match":
-        return ["Key momentum right now", "Who looks stronger?", "What should I watch next?"];
-      case "teer":
-        return ["Summarize last 30 days", "Any recent patterns?", "Top 3 historical trends"];
-      case "astrology":
-        return ["Today vibes", "Career focus this week", "Love outlook"];
-      default:
-        return ["Give me a quick summary", "What is trending today?", "Explain in simple terms"];
-    }
-  }, [topic]);
-
-  const closeStream = useCallback(() => {
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-      eventSourceRef.current = null;
-    }
+  useEffect(() => {
+    const auth = getAuth();
+    setToken(auth.token);
+    return () => {
+      setLoading(false);
+    };
   }, []);
 
-  useEffect(() => {
-    return () => {
-      closeStream();
-    };
-  }, [closeStream]);
-
-  useEffect(() => {
-    setMessages([]);
-    setExpandedCards({});
-    setLoading(false);
-    closeStream();
-  }, [topic, matchId, closeStream]);
-
-  useEffect(() => {
-    if (!bottomRef.current) return;
-    bottomRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages, loading]);
-
   const handleSend = () => {
-    if (loading) return;
-    const prompt = input.trim();
-    if (!prompt) return;
-    const assistantId = `assistant-${Date.now()}`;
-    setMessages((prev) => [...prev, createUserMessage(prompt)]);
+    if (!input.trim()) return;
+    setMessages((prev) => [...prev, createUserMessage(input.trim())]);
     setInput("");
     setLoading(true);
 
-    const eventSource = new EventSource(`${streamUrl}&q=${encodeURIComponent(prompt)}`);
-    eventSourceRef.current = eventSource;
+    const eventSource = new EventSource(`${streamUrl}&q=${encodeURIComponent(input.trim())}`);
 
     eventSource.onmessage = (event) => {
       const data = JSON.parse(event.data) as { card?: CardResponse; done?: boolean };
       const card = data.card;
       if (card) {
         setMessages((prev) => {
-          const existing = prev.find((message) => message.id === assistantId);
+          const existing = prev.find((message) => message.id === "assistant");
           if (existing) {
             const updated = prev.map((message) =>
-              message.id === assistantId
+              message.id === "assistant"
                 ? {
                     ...message,
                     cards: [...(message.cards ?? []), card]
@@ -98,7 +71,7 @@ export function ChatStream({ topic, matchId }: { topic: string; matchId?: string
           return [
             ...prev,
             {
-              id: assistantId,
+              id: "assistant",
               role: "assistant",
               cards: [card]
             }
@@ -107,13 +80,13 @@ export function ChatStream({ topic, matchId }: { topic: string; matchId?: string
       }
       if (data.done) {
         setLoading(false);
-        closeStream();
+        eventSource.close();
       }
     };
 
     eventSource.onerror = () => {
       setLoading(false);
-      closeStream();
+      eventSource.close();
       setMessages((prev) => [
         ...prev,
         {
@@ -137,32 +110,12 @@ export function ChatStream({ topic, matchId }: { topic: string; matchId?: string
   };
 
   return (
-    <div className="flex flex-col gap-4 h-full">
-      <div className="flex flex-col gap-3 max-h-[55vh] overflow-y-auto pr-1 sm:max-h-[60vh] lg:max-h-[65vh]">
-        {messages.length === 0 && !loading && (
-          <div className="rounded-2xl border border-ink-100 bg-ink-50 p-4">
-            <p className="text-sm font-medium text-ink-900">Start the conversation</p>
-            <p className="mt-1 text-xs text-ink-500">
-              Try one of these prompts or type your own question.
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {suggestedPrompts.map((prompt) => (
-                <button
-                  key={prompt}
-                  type="button"
-                  onClick={() => setInput(prompt)}
-                  className="rounded-full border border-ink-200 bg-white px-3 py-1 text-xs font-medium text-ink-600 transition hover:border-ink-300"
-                >
-                  {prompt}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+    <div className="space-y-4">
+      <div className="space-y-4">
         {messages.map((message) => (
-          <div key={message.id} className="flex flex-col gap-3">
+          <div key={message.id} className="space-y-3">
             {message.role === "user" && (
-              <div className="self-end rounded-2xl bg-ink-900 px-4 py-3 text-sm text-white w-fit max-w-[85%] whitespace-pre-wrap break-words">
+              <div className="self-end rounded-2xl bg-ink-900 px-4 py-3 text-sm text-white">
                 {message.text}
               </div>
             )}
@@ -195,32 +148,35 @@ export function ChatStream({ topic, matchId }: { topic: string; matchId?: string
           </div>
         ))}
         {loading && (
-          <div className="self-start rounded-2xl border border-ink-100 bg-white px-4 py-2 text-xs text-ink-500 shadow-card w-fit">
-            mydost is typing…
+          <div className="card card-section">
+            <div className="skeleton h-4 w-2/3" />
+            <div className="skeleton h-4 w-1/2" />
           </div>
         )}
-        <div ref={bottomRef} />
       </div>
       <div className="flex flex-col gap-3 rounded-2xl border border-ink-100 bg-white p-4">
         <textarea
           value={input}
           onChange={(event) => setInput(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" && !event.shiftKey) {
-              event.preventDefault();
-              handleSend();
-            }
-          }}
           rows={3}
           placeholder="Ask mydost anything..."
-          className="w-full resize-none rounded-xl border border-ink-100 p-3 text-sm outline-none focus:border-ink-300 min-h-[96px]"
+          className="w-full resize-none rounded-xl border border-ink-100 p-3 text-sm outline-none focus:border-ink-300"
         />
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center justify-between">
           <p className="text-xs text-ink-400">Responses stream live. Entertainment only.</p>
-          <Button onClick={handleSend} size="sm" className="w-full sm:w-auto" disabled={!canSend}>
+          <Button onClick={handleSend} size="sm">
             Send
           </Button>
         </div>
+        {!token && hasGoogleClientId && (
+          <div className="mx-auto mt-3 w-full max-w-2xl rounded-2xl border border-ink-100 bg-white px-4 py-3 text-sm text-ink-600">
+            <p className="font-medium text-ink-900">Sign in to save memory.</p>
+            <p className="mt-1 text-xs text-ink-500">You can chat without signing in.</p>
+            <div className="mt-3">
+              <GoogleLoginButton onSuccess={() => setToken(getAuth().token)} />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
