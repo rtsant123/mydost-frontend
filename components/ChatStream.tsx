@@ -5,7 +5,6 @@ import { API_BASE_URL } from "@/lib/api";
 import { getAuth } from "@/lib/auth";
 import { CardResponse, ChatMessage } from "@/lib/types";
 import { Button } from "./Button";
-import { CardRenderer } from "./CardRenderer";
 import { GoogleLoginButton } from "./GoogleLoginButton";
 
 const createUserMessage = (text: string): ChatMessage => ({
@@ -200,42 +199,114 @@ export function ChatStream({
         {messages.map((message) => (
           <div key={message.id} className="space-y-3">
             {message.role === "user" && (
-              <div className="self-end rounded-2xl bg-ink-900 px-4 py-3 text-sm text-white">
-                {message.text}
+              <div className="flex justify-end">
+                <div className="max-w-[85%] rounded-2xl bg-ink-900 px-4 py-3 text-sm text-white shadow-card">
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-ink-200">You</p>
+                  <p className="mt-1">{message.text}</p>
+                </div>
               </div>
             )}
             {message.role === "assistant" &&
-              message.cards?.map((card) => (
-                <div key={card.id} className="space-y-2">
-                  <CardRenderer
-                    card={{
-                      ...card,
-                      content:
-                        expandedCards[card.id] || !card.content
-                          ? card.content
-                          : `${card.content.slice(0, 140)}...`,
-                      bullets:
-                        expandedCards[card.id] || !card.bullets
-                          ? card.bullets
-                          : card.bullets.slice(0, 2)
-                    }}
-                  />
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-xs"
-                    onClick={() => toggleExpand(card.id)}
-                  >
-                    {expandedCards[card.id] ? "Collapse" : "Expand"}
-                  </Button>
-                </div>
-              ))}
+              message.cards?.map((card) => {
+                const isExpanded = expandedCards[card.id];
+                const content =
+                  isExpanded || !card.content ? card.content : `${card.content.slice(0, 140)}...`;
+                const bullets =
+                  isExpanded || !card.bullets ? card.bullets : card.bullets.slice(0, 2);
+                const isExpandable =
+                  (card.content && card.content.length > 140) ||
+                  (card.bullets && card.bullets.length > 2);
+
+                return (
+                  <div key={card.id} className="flex justify-start">
+                    <div className="max-w-[85%] space-y-3 rounded-2xl border border-ink-100 bg-white px-4 py-3 text-sm text-ink-700 shadow-card">
+                      <div>
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-ink-400">
+                          Dost
+                        </p>
+                        {card.title && (
+                          <p className="mt-1 text-sm font-semibold text-ink-900">
+                            {card.title}
+                          </p>
+                        )}
+                      </div>
+                      {content && <p>{content}</p>}
+                      {bullets && (
+                        <ul className="list-disc space-y-1 pl-5">
+                          {bullets.map((bullet) => (
+                            <li key={bullet}>{bullet}</li>
+                          ))}
+                        </ul>
+                      )}
+                      {card.table && (
+                        <div className="overflow-x-auto">
+                          <table className="min-w-full text-left text-xs text-ink-600">
+                            <thead className="text-[10px] uppercase text-ink-400">
+                              <tr>
+                                {card.table.headers.map((header) => (
+                                  <th key={header} className="px-2 py-1">
+                                    {header}
+                                  </th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {card.table.rows.map((row, index) => (
+                                <tr key={`${row[0]}-${index}`} className="border-t border-ink-100">
+                                  {row.map((cell) => (
+                                    <td key={cell} className="px-2 py-1">
+                                      {cell}
+                                    </td>
+                                  ))}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                      {card.cta && (
+                        <div className="flex flex-wrap gap-2">
+                          {card.cta.map((item) => (
+                            <Button key={item.label} href={item.href} variant="secondary" size="sm">
+                              {item.label}
+                            </Button>
+                          ))}
+                        </div>
+                      )}
+                      {isExpandable && (
+                        <div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-xs"
+                            onClick={() => toggleExpand(card.id)}
+                          >
+                            {isExpanded ? "Collapse" : "Expand"}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
           </div>
         ))}
         {loading && (
-          <div className="card card-section">
-            <div className="skeleton h-4 w-2/3" />
-            <div className="skeleton h-4 w-1/2" />
+          <div className="flex justify-start">
+            <div className="max-w-[60%] rounded-2xl border border-ink-100 bg-white px-4 py-3 text-sm text-ink-500 shadow-card">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-ink-400">Dost</p>
+              <div className="mt-2 flex items-center gap-1">
+                <span className="h-2 w-2 animate-bounce rounded-full bg-ink-300" />
+                <span
+                  className="h-2 w-2 animate-bounce rounded-full bg-ink-300"
+                  style={{ animationDelay: "120ms" }}
+                />
+                <span
+                  className="h-2 w-2 animate-bounce rounded-full bg-ink-300"
+                  style={{ animationDelay: "240ms" }}
+                />
+              </div>
+            </div>
           </div>
         )}
       </div>
