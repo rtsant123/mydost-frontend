@@ -35,8 +35,9 @@ export function ChatStream({
   const streamUrl = useMemo(() => {
     const params = new URLSearchParams({ topic });
     if (matchId) params.set("matchId", matchId);
+    if (contextPrefix) params.set("context", contextPrefix);
     return `${API_BASE_URL}/chat/stream?${params.toString()}`;
-  }, [topic, matchId]);
+  }, [topic, matchId, contextPrefix]);
 
   useEffect(() => {
     const auth = getAuth();
@@ -162,7 +163,7 @@ export function ChatStream({
           value={input}
           onChange={(event) => setInput(event.target.value)}
           rows={3}
-          placeholder="Ask mydost anything..."
+          placeholder={placeholder ?? "Ask mydost anything..."}
           className="w-full resize-none rounded-xl border border-ink-100 p-3 text-sm outline-none focus:border-ink-300"
         />
         <div className="flex items-center justify-between">
