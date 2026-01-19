@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { API_BASE_URL } from "@/lib/api";
 import { getAuth } from "@/lib/auth";
 import { CardResponse, ChatMessage } from "@/lib/types";
@@ -31,6 +31,9 @@ export function ChatStream({
   const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({});
   const [token, setToken] = useState<string | null>(null);
   const hasGoogleClientId = Boolean(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID);
+  const eventSourceRef = useRef<EventSource | null>(null);
+  const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasResponseRef = useRef(false);
 
   const streamUrl = useMemo(() => {
     const params = new URLSearchParams({ topic });
@@ -43,6 +46,10 @@ export function ChatStream({
     const auth = getAuth();
     setToken(auth.token);
     return () => {
+      eventSourceRef.current?.close();
+      if (fallbackTimerRef.current) {
+        clearTimeout(fallbackTimerRef.current);
+      }
       setLoading(false);
     };
   }, []);
@@ -52,11 +59,50 @@ export function ChatStream({
     setMessages((prev) => [...prev, createUserMessage(input.trim())]);
     setInput("");
     setLoading(true);
+    hasResponseRef.current = false;
+    eventSourceRef.current?.close();
+    if (fallbackTimerRef.current) {
+      clearTimeout(fallbackTimerRef.current);
+    }
 
     const eventSource = new EventSource(`${streamUrl}&q=${encodeURIComponent(input.trim())}`);
+    eventSourceRef.current = eventSource;
+
+    fallbackTimerRef.current = setTimeout(() => {
+      if (!hasResponseRef.current) {
+        eventSource.close();
+        setLoading(false);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `fallback-${Date.now()}`,
+            role: "assistant",
+            cards: [
+              {
+                id: `fallback-card-${Date.now()}`,
+                type: "warning",
+                title: "No response yet",
+                content:
+                  "We could not reach the chat stream. Check NEXT_PUBLIC_API_BASE_URL or try again."
+              }
+            ]
+          }
+        ]);
+      }
+    }, 4000);
 
     eventSource.onmessage = (event) => {
-      const data = JSON.parse(event.data) as { card?: CardResponse; done?: boolean };
+      hasResponseRef.current = true;
+      if (fallbackTimerRef.current) {
+        clearTimeout(fallbackTimerRef.current);
+        fallbackTimerRef.current = null;
+      }
+      let data: { card?: CardResponse; done?: boolean } | null = null;
+      try {
+        data = JSON.parse(event.data) as { card?: CardResponse; done?: boolean };
+      } catch {
+        data = { card: { id: `raw-${Date.now()}`, type: "answer", title: "Reply", content: event.data } };
+      }
       const card = data.card;
       if (card) {
         setMessages((prev) => {
@@ -89,6 +135,10 @@ export function ChatStream({
     };
 
     eventSource.onerror = () => {
+      if (fallbackTimerRef.current) {
+        clearTimeout(fallbackTimerRef.current);
+        fallbackTimerRef.current = null;
+      }
       setLoading(false);
       eventSource.close();
       setMessages((prev) => [
